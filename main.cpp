@@ -2,19 +2,50 @@
 #include <fstream>
 #include <array>
 #include <cstdint>
+#include <algorithm>
 
 constexpr std::size_t FRAME_SIZE = 256;
-constexpr std::size_t PAGE_SIZE  = FRAME_SIZE; 
+constexpr std::size_t PAGE_SIZE  = FRAME_SIZE;
 constexpr std::size_t PAGE_TABLE_SIZE = 256;
-constexpr std::size_t TLB_SIZE        = 16; 
+constexpr std::size_t TLB_SIZE        = 16;
+constexpr std::uint16_t MAX_UINT16    = static_cast<std::uint16_t>(-1);
 
-class entry
+typedef   char _byte_t;
+typedef   std::array<_byte_t, FRAME_SIZE> frame;
+typedef   std::uint16_t address_t;
+
+struct entry
 {
-	std::uint16_t _virtual;
-	std::uint16_t _physical;
+	std::uint16_t _virtual  = -1;
+	std::uint16_t _physical = -1;
+	int _access_time_stamp  = -1;
+	frame* _phy_memory = nullptr;
+	frame& operator()()
+	{
+		if (_phy_memory)
+			return *_phy_memory;
+		throw std::runtime_error("Access nullptr in entry");
+	}
 };
 
-typedef std::array<std::uint8_t, FRAME_SIZE> frame; 
+struct swap_table
+{
+	std::array<frame, 256> _swap;
+    swap_table(const char* file_path)
+	{
+		if (std::ifstream main_memory_src{file_path, std::ios::binary})
+		{
+			for (auto &f: _swap)
+				main_memory_src.read(f.data(), FRAME_SIZE);
+		}
+		else
+			std::cerr << "Error: " << file_path << " not open\n";
+	}
+	frame& operator[] (int id)
+	{
+		return _swap[id];
+	}
+};
 
 int main(int argc, char *argv[])
 {
